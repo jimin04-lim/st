@@ -1,5 +1,5 @@
 # 예시: Python FastAPI 애플리케이션을 위한 Dockerfile
-FROM python:3.10
+FROM python:3.11
 
 WORKDIR /app
 
