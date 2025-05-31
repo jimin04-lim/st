@@ -278,6 +278,12 @@ async def translate_to_easy_korean(input_data: TextInput):
 
         translated_text = response.choices[0].message.content.strip()
 
+        input_tts_filename = generate_tts(input_data.text)
+        easy_tts_filename = generate_tts(translated_text)
+
+        input_tts_url = f"{BASE_URL}/tts/{input_tts_filename}"
+        easy_tts_url = f"{BASE_URL}/tts/{easy_tts_filename}"
+
         original_pron = get_pronunciations(input_data.text)
         translated_pron = get_pronunciations(translated_text)
 
@@ -298,9 +304,11 @@ async def translate_to_easy_korean(input_data: TextInput):
 
         return JSONResponse(content={
             "original_text": input_data.text,
-            "original_korean_pronunciation": original_pron["korean_pronunciation"],
+            "inputRomanized": original_pron["romanized"],
+            "inputPronunciation":input_tts_url,
             "translated_text": translated_text,
-            "translated_korean_pronunciation": translated_pron["korean_pronunciation"],
+            "easyRomanized": translated_pron["romanized"],
+            "easyPronunciation":easy_tts_url,
             "translated_english_translation": translated_english_translation,
             "keyword_dictionary": keywords_with_definitions
         })
