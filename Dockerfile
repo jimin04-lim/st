@@ -10,6 +10,9 @@ ENV PATH="$JAVA_HOME/bin:$PATH"
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# tts_files 폴더 생성
+RUN mkdir -p tts_files
+
 # 필요한 파이썬 패키지 복사 및 설치
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
