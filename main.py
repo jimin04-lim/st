@@ -112,6 +112,13 @@ def convert_pronunciation_to_roman(sentence: str) -> str:
     romanized = transliter.translit(korean_pron)
     return romanized
 
+def get_pronunciations(sentence: str) -> dict:
+    korean_pron = g2p(sentence)  # 예: 학교에 → 학꾜에
+    romanized = transliter.translit(korean_pron)  # 예: hakgyoe
+    return {
+        "korean_pronunciation": korean_pron,
+        "romanized": romanized
+    }
 
 def generate_tts(text: str) -> str:
     try:
@@ -257,8 +264,6 @@ async def speak(request: TTSRequest):
 @app.post("/translate-to-easy-korean")
 async def translate_to_easy_korean(input_data: TextInput):
     try:
-        original_romanized_pronunciation = convert_pronunciation_to_roman(input_data.text)
-
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": input_data.text}
@@ -272,6 +277,9 @@ async def translate_to_easy_korean(input_data: TextInput):
         )
 
         translated_text = response.choices[0].message.content.strip()
+
+        original_pron = get_pronunciations(input_data.text)
+        translated_pron = get_pronunciations(translated_text)
 
         # KoreanRomanizer 대신 일관성을 위해 convert_pronunciation_to_roman 함수 재사용
         translated_romanized_pronunciation = convert_pronunciation_to_roman(translated_text)
@@ -290,9 +298,9 @@ async def translate_to_easy_korean(input_data: TextInput):
 
         return JSONResponse(content={
             "original_text": input_data.text,
-            "original_romanized_pronunciation": original_romanized_pronunciation,
+            "original_korean_pronunciation": original_pron["korean_pronunciation"],
             "translated_text": translated_text,
-            "translated_romanized_pronunciation": translated_romanized_pronunciation,
+            "translated_korean_pronunciation": translated_pron["korean_pronunciation"],
             "translated_english_translation": translated_english_translation,
             "keyword_dictionary": keywords_with_definitions
         })
