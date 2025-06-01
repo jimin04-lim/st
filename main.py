@@ -20,16 +20,15 @@ import time
 api_key = os.getenv("OPENAI_API_KEY")
 korean_dict_api_key = os.getenv("KOREAN_DICT_API_KEY")
 
-if not api_key:
-    raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다. API 키를 설정해주세요.")
-if not korean_dict_api_key:
-    raise ValueError("KOREAN_DICT_API_KEY 환경 변수가 설정되지 않았습니다. API 키를 설정해주세요.")
-
 # --- OpenAI 클라이언트 초기화 ---
 client = OpenAI(api_key=api_key)
 
 # --- FastAPI 앱 초기화 ---
 app = FastAPI()
+
+# --- TTS 설정 ---
+TTS_OUTPUT_DIR = "tts_files"
+os.makedirs(TTS_OUTPUT_DIR, exist_ok=True)
 
 # --- CORS 설정 ---
 app.add_middleware(
@@ -40,10 +39,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- TTS 설정 ---
-TTS_OUTPUT_DIR = "tts_files"
-os.makedirs(TTS_OUTPUT_DIR, exist_ok=True)
-
+# 정적 파일 제공
+app.mount("/tts", StaticFiles(directory=TTS_OUTPUT_DIR), name="tts")
 
 # TTS 파일 정리 함수
 def cleanup_old_tts_files(max_age_hours=24):
@@ -62,7 +59,6 @@ def cleanup_old_tts_files(max_age_hours=24):
 # --- Pydantic 모델 정의 ---
 class TextInput(BaseModel):
     text: str
-
 
 class TTSRequest(BaseModel):
     text: str
@@ -126,13 +122,10 @@ def generate_tts(text: str) -> str:
         filename = f"{uuid.uuid4()}.mp3"
         filepath = os.path.join(TTS_OUTPUT_DIR, filename)
         tts.save(filepath)
-
-        # 오래된 파일 정리
         cleanup_old_tts_files()
-
         return filename
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS 생성 중 에러가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"TTS실패: {str(e)}")
 
 
 def translate_korean_to_english(text: str) -> str:
@@ -232,7 +225,7 @@ def get_valid_senses_excluding_pronoun(word, target_pos, max_defs=3):
 
 @app.get("/")
 async def read_root():
-    return {"message": "SimpleTalk API 서버가 작동 중입니다."}
+    return {"message": "SimpleTalk API 서버가 작동"}
 
 
 @app.post("/romanize")
@@ -251,14 +244,14 @@ async def speak(request: TTSRequest):
         filename = generate_tts(request.text)
 
         # 전체 URL 생성
-        audio_url = f"{BASE_URL}/audio/{filename}"
+        audio_url = f"{BASE_URL}/tts/{filename}"
 
         return JSONResponse(content={
             "audio_url": audio_url,
             "romanized": romanized
         })
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS 생성 중 에러가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"TTS 생성 중 에러: {str(e)}")
 
 
 @app.post("/translate-to-easy-korean")
@@ -318,7 +311,8 @@ async def translate_to_easy_korean(input_data: TextInput):
         raise HTTPException(status_code=500, detail=f"API 처리 중 에러가 발생했습니다: {str(e)}")
 
 
-@app.get("/audio/{filename}")
+#---------mp3파일 제공
+@app.get("/tts/{filename}")
 async def serve_audio(filename: str):
     try:
         filepath = os.path.join(TTS_OUTPUT_DIR, filename)
@@ -335,4 +329,4 @@ async def serve_audio(filename: str):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"오디오 파일 서빙 중 에러가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"오디오 파일 서빙 중 에러: {str(e)}")
